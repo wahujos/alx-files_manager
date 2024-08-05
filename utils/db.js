@@ -1,28 +1,23 @@
 // utils/db.js
-import { MongoClient } from 'mongodb';
-import dotenv from 'dotenv';
 
-dotenv.config();
+import { MongoClient } from 'mongodb';
+
+// Use the connection string from environment variable
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/files_manager';
 
 class DBClient {
   constructor() {
-    const host = process.env.DB_HOST || 'localhost';
-    const port = process.env.DB_PORT || 27017;
-    const database = process.env.DB_DATABASE || 'files_manager';
-
-    const url = `mongodb://${host}:${port}`;
-    this.client = new MongoClient(url, { useUnifiedTopology: true });
-    this.db = this.client.db(database);
-
-    this.client.connect((err) => {
-      if (err) {
-        console.error('Failed to connect to MongoDB', err);
-      }
+    this.client = new MongoClient(MONGO_URI, { useUnifiedTopology: true, useNewUrlParser: true });
+    this.client.connect().then(() => {
+      this.db = this.client.db(); // Use the database from the URI
+    }).catch((err) => {
+      console.error('Error connecting to MongoDB:', err);
     });
   }
 
   isAlive() {
-    return this.client.isConnected();
+    // Since `isConnected` is deprecated, use the alternative method
+    return this.client.topology.isConnected();
   }
 
   async nbUsers() {
@@ -34,5 +29,6 @@ class DBClient {
   }
 }
 
+// Create and export an instance of DBClient
 const dbClient = new DBClient();
 export default dbClient;
