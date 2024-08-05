@@ -1,4 +1,4 @@
-i// Import the express library to create the server
+// Import the express library to create the server
 import express from 'express';
 
 // Import the router to handle the routes defined in routes/index.js
