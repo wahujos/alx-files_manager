@@ -2,7 +2,7 @@
 
 import { MongoClient } from 'mongodb';
 
-// Use the connection string from environment variable
+// Use the connection string from the environment variable
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/files_manager';
 
 class DBClient {
@@ -10,22 +10,39 @@ class DBClient {
     this.client = new MongoClient(MONGO_URI, { useUnifiedTopology: true, useNewUrlParser: true });
     this.client.connect().then(() => {
       this.db = this.client.db(); // Use the database from the URI
+      console.log('Connected to MongoDB');
     }).catch((err) => {
       console.error('Error connecting to MongoDB:', err);
     });
   }
 
-  isAlive() {
-    // Since `isConnected` is deprecated, use the alternative method
-    return this.client.topology.isConnected();
+  // Check if MongoDB is alive by pinging the server
+  async isAlive() {
+    try {
+      await this.db.command({ ping: 1 });
+      return true;
+    } catch (err) {
+      console.error('MongoDB is not alive:', err);
+      return false;
+    }
   }
 
   async nbUsers() {
-    return this.db.collection('users').countDocuments();
+    try {
+      return await this.db.collection('users').countDocuments();
+    } catch (err) {
+      console.error('Error counting users:', err);
+      return 0;
+    }
   }
 
   async nbFiles() {
-    return this.db.collection('files').countDocuments();
+    try {
+      return await this.db.collection('files').countDocuments();
+    } catch (err) {
+      console.error('Error counting files:', err);
+      return 0;
+    }
   }
 }
 

@@ -6,4 +6,7 @@ const router = express.Router();
 router.get('/status', getStatus);
 router.get('/stats', getStats);
 
+// New endpoint for creating users
+router.post('/users', UsersController.postNew);
+
 export default router;
