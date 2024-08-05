@@ -1,44 +1,45 @@
+// controllers/UsersController.js
+
 import crypto from 'crypto';
-import { MongoClient } from 'mongodb';
-import { getDB } from '../utils/db';  // Adjust the path if necessary
+import dbClient from '../utils/db.js'; // Assuming you have this for DB access
 
-class UsersController {
-  static async postNew(req, res) {
-    const { email, password } = req.body;
-
-    // Check if email and password are provided
-    if (!email) {
-      return res.status(400).json({ error: 'Missing email' });
-    }
-    if (!password) {
-      return res.status(400).json({ error: 'Missing password' });
-    }
-
+const UsersController = {
+  async postNew(req, res) {
     try {
-      const db = await getDB();
-      const usersCollection = db.collection('users');
+      const { email, password } = req.body;
 
-      // Check if email already exists
-      const existingUser = await usersCollection.findOne({ email });
+      if (!email) {
+        return res.status(400).json({ error: 'Missing email' });
+      }
+      if (!password) {
+        return res.status(400).json({ error: 'Missing password' });
+      }
+
+      const db = dbClient.db;
+      const existingUser = await db.collection('users').findOne({ email });
+
       if (existingUser) {
         return res.status(400).json({ error: 'Already exist' });
       }
 
-      // Hash the password using SHA1
       const hashedPassword = crypto.createHash('sha1').update(password).digest('hex');
+      const result = await db.collection('users').insertOne({ email, password: hashedPassword });
 
-      // Create the new user
-      const result = await usersCollection.insertOne({ email, password: hashedPassword });
-
-      // Respond with the new user data
-      const newUser = result.ops[0];
-      return res.status(201).json({ id: newUser._id, email: newUser.email });
-
+      return res.status(201).json({ id: result.insertedId, email });
     } catch (error) {
       console.error('Error creating user:', error);
-      return res.status(500).json({ error: 'Internal Server Error' });
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+
+  async getMe(req, res) {
+    try {
+      // Implement the logic for GET /users/me
+    } catch (error) {
+      console.error('Error retrieving user:', error);
+      return res.status(500).json({ error: 'Internal server error' });
     }
   }
-}
+};
 
 export default UsersController;
