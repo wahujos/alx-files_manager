@@ -1,19 +1,26 @@
-// server.js
+i// Import the express library to create the server
 import express from 'express';
-import routes from './routes/index.js';
-import dotenv from 'dotenv';
 
-dotenv.config();
+// Import the router to handle the routes defined in routes/index.js
+import router from './routes/index';
 
+// Get the port from the environment variable PORT or use 5000 as the default port
+const port = parseInt(process.env.PORT, 10) || 5000;
+
+// Create an instance of an Express application
 const app = express();
-const port = process.env.PORT || 5000;
 
-// Middleware to parse JSON requests
+// Middleware to parse incoming JSON request bodies
 app.use(express.json());
 
-// Load all routes
-app.use('/api', routes);
+// Use the imported router for handling routes starting from the root path ('/')
+app.use('/', router);
 
+// Start the server and listen on the specified port
 app.listen(port, () => {
-    console.log(`Server running on port ${port}`);
+  // Log a message indicating that the server is running and on which port
+  console.log(`Server running on port ${port}`);
 });
+
+// Export the app instance for potential testing or further configuration
+export default app;
