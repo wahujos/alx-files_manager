@@ -1,27 +1,41 @@
 const Bull = require('bull');
 const { ObjectId } = require('mongodb');
-const fs = require('fs');
-const path = require('path');
-const imageThumbnail = require('image-thumbnail');
 const DBClient = require('./utils/db');
+const nodemailer = require('nodemailer');
 
-const fileQueue = new Bull('fileQueue');
+const userQueue = new Bull('userQueue');
 
-fileQueue.process(async (job) => {
-  const { fileId, userId } = job.data;
-
-  if (!fileId) throw new Error('Missing fileId');
-  if (!userId) throw new Error('Missing userId');
-
-  const file = await DBClient.db.collection('files').findOne({ _id: ObjectId(fileId), userId: ObjectId(userId) });
-  if (!file) throw new Error('File not found');
-
-  const sizes = [500, 250, 100];
-  for (const size of sizes) {
-    const thumbnail = await imageThumbnail(file.localPath, { width: size });
-    const thumbnailPath = `${file.localPath}_${size}`;
-    fs.writeFileSync(thumbnailPath, thumbnail);
+// Configure nodemailer (assuming you're using a real SMTP service or similar)
+const transporter = nodemailer.createTransport({
+  service: 'Gmail', // Use your email service
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
   }
 });
 
-module.exports = fileQueue;
+userQueue.process(async (job) => {
+  const { userId } = job.data;
+
+  if (!userId) throw new Error('Missing userId');
+
+  const user = await DBClient.db.collection('users').findOne({ _id: ObjectId(userId) });
+  if (!user) throw new Error('User not found');
+
+  const { email } = user;
+
+  // Send a welcome email
+  try {
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: 'Welcome!',
+      text: `Welcome ${email}!`
+    });
+    console.log(`Welcome email sent to ${email}`);
+  } catch (error) {
+    console.error(`Error sending email to ${email}:`, error);
+  }
+});
+
+module.exports = userQueue;

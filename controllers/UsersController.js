@@ -1,7 +1,6 @@
-// controllers/UsersController.js
-
 import crypto from 'crypto';
 import dbClient from '../utils/db.js'; // Assuming you have this for DB access
+import userQueue from '../worker.js'; // Import the Bull queue for user emails
 
 const UsersController = {
   async postNew(req, res) {
@@ -24,8 +23,12 @@ const UsersController = {
 
       const hashedPassword = crypto.createHash('sha1').update(password).digest('hex');
       const result = await db.collection('users').insertOne({ email, password: hashedPassword });
+      const newUserId = result.insertedId;
 
-      return res.status(201).json({ id: result.insertedId, email });
+      // Add a job to the userQueue to send a welcome email
+      userQueue.add({ userId: newUserId });
+
+      return res.status(201).json({ id: newUserId, email });
     } catch (error) {
       console.error('Error creating user:', error);
       return res.status(500).json({ error: 'Internal server error' });
