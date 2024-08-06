@@ -1,26 +1,19 @@
 import express from 'express';
 import AuthController from '../controllers/AuthController.js';
 import UsersController from '../controllers/UsersController.js';
-import AppController from '../controllers/AppController.js';
-import FilesController from '../controllers/FilesController.js'; // Import FilesController
+import AppController from '../controllers/AppController.js'; // Ensure this is correctly defined and imported
 
 const router = express.Router();
 
-// User-related endpoints
+// Route for creating a new user
 router.post('/users', UsersController.postNew);
+
+// Routes for authentication
 router.get('/connect', AuthController.getConnect);
 router.get('/disconnect', AuthController.getDisconnect);
 router.get('/users/me', UsersController.getMe);
 
-// App status endpoint
-router.get('/status', AppController.getStatus);
-
-// File manager endpoints
-router.post('/files', FilesController.postUpload);
-router.get('/files/:id', FilesController.getShow);
-router.get('/files', FilesController.getIndex);
-router.put('/files/:id/publish', FilesController.putPublish);
-router.put('/files/:id/unpublish', FilesController.putUnpublish);
-router.get('/files/:id/data', FilesController.getFile);
+// Route for checking API status
+router.get('/status', AppController.getStatus); // Ensure AppController is correctly imported and defined
 
 export default router;
