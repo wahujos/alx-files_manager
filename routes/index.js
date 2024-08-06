@@ -13,7 +13,8 @@ router.get('/connect', AuthController.getConnect);
 router.get('/disconnect', AuthController.getDisconnect);
 router.get('/users/me', UsersController.getMe);
 
-// Route for checking API status
+// Routes for checking API status and stats
 router.get('/status', AppController.getStatus); // Ensure AppController is correctly imported and defined
+router.get('/stats', AppController.getStats);   // Adding the /stats route
 
 export default router;
