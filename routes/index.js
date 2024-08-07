@@ -1,20 +1,29 @@
-import express from 'express';
-import AuthController from '../controllers/AuthController.js';
-import UsersController from '../controllers/UsersController.js';
-import AppController from '../controllers/AppController.js'; // Ensure this is correctly defined and imported
+import { Router } from 'express';
+import AppController from '../controllers/AppController';
+import UsersController from '../controllers/UsersController';
+import AuthController from '../controllers/AuthController';
+import FilesController from '../controllers/FilesController';
 
-const router = express.Router();
+const router = Router();
 
-// Route for creating a new user
+// App routes
+router.get('/status', AppController.getStatus);
+router.get('/stats', AppController.getStats);
+
+// User routes
 router.post('/users', UsersController.postNew);
-
-// Routes for authentication
-router.get('/connect', AuthController.getConnect);
-router.get('/disconnect', AuthController.getDisconnect);
 router.get('/users/me', UsersController.getMe);
 
-// Routes for checking API status and stats
-router.get('/status', AppController.getStatus); // Ensure AppController is correctly imported and defined
-router.get('/stats', AppController.getStats);   // Adding the /stats route
+// Authentication routes
+router.get('/connect', AuthController.getConnect);
+router.get('/disconnect', AuthController.getDisconnect);
+
+// File routes
+router.post('/files', FilesController.postUpload);
+router.get('/files/:id', FilesController.getShow);
+router.get('/files', FilesController.getIndex);
+router.put('/files/:id/publish', FilesController.putPublish);
+router.put('/files/:id/unpublish', FilesController.putUnpublish);
+router.get('/files/:id/data', FilesController.getFile);
 
 export default router;

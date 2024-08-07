@@ -1,48 +1,68 @@
-import crypto from 'crypto';
-import dbClient from '../utils/db.js'; // Assuming you have this for DB access
-import userQueue from '../worker.js'; // Import the Bull queue for user emails
+import sha1 from 'sha1';
+import { ObjectId } from 'mongodb';
+import Queue from 'bull';
+import dbClient from '../utils/db';
+import redisClient from '../utils/redis';
 
-const UsersController = {
-  async postNew(req, res) {
-    try {
-      const { email, password } = req.body;
+const userQueue = new Queue('userQueue', 'redis://127.0.0.1:6379');
 
-      if (!email) {
-        return res.status(400).json({ error: 'Missing email' });
-      }
-      if (!password) {
-        return res.status(400).json({ error: 'Missing password' });
-      }
+class UsersController {
+  static async postNew(request, response) {
+    const { email, password } = request.body;
 
-      const db = dbClient.db;
-      const existingUser = await db.collection('users').findOne({ email });
-
-      if (existingUser) {
-        return res.status(400).json({ error: 'Already exist' });
-      }
-
-      const hashedPassword = crypto.createHash('sha1').update(password).digest('hex');
-      const result = await db.collection('users').insertOne({ email, password: hashedPassword });
-      const newUserId = result.insertedId;
-
-      // Add a job to the userQueue to send a welcome email
-      userQueue.add({ userId: newUserId });
-
-      return res.status(201).json({ id: newUserId, email });
-    } catch (error) {
-      console.error('Error creating user:', error);
-      return res.status(500).json({ error: 'Internal server error' });
+    if (!email) {
+      return response.status(400).json({ error: 'Missing email' });
     }
-  },
+    if (!password) {
+      return response.status(400).json({ error: 'Missing password' });
+    }
 
-  async getMe(req, res) {
     try {
-      // Implement the logic for GET /users/me
+      const users = dbClient.db.collection('users');
+      const userExists = await users.findOne({ email });
+
+      if (userExists) {
+        return response.status(400).json({ error: 'Already exist' });
+      }
+
+      const hashedPassword = sha1(password);
+      const result = await users.insertOne({
+        email,
+        password: hashedPassword,
+      });
+
+      response.status(201).json({ id: result.insertedId, email });
+      userQueue.add({ userId: result.insertedId });
+
     } catch (error) {
-      console.error('Error retrieving user:', error);
-      return res.status(500).json({ error: 'Internal server error' });
+      console.error(error);
+      response.status(500).json({ error: 'Internal server error' });
     }
   }
-};
+
+  static async getMe(request, response) {
+    const token = request.header('X-Token');
+    const key = `auth_${token}`;
+    const userId = await redisClient.get(key);
+
+    if (!userId) {
+      return response.status(401).json({ error: 'Unauthorized' });
+    }
+
+    try {
+      const users = dbClient.db.collection('users');
+      const user = await users.findOne({ _id: new ObjectId(userId) });
+
+      if (user) {
+        return response.status(200).json({ id: userId, email: user.email });
+      } else {
+        return response.status(401).json({ error: 'Unauthorized' });
+      }
+    } catch (error) {
+      console.error(error);
+      response.status(500).json({ error: 'Internal server error' });
+    }
+  }
+}
 
 export default UsersController;
