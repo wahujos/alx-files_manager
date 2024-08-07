@@ -5,7 +5,7 @@
 ### ES6
 ### NoSQL
 ### MongoDB
-### Redis
+### Redis server
 ### NodeJS
 ### ExpressJS
 ### Kue
