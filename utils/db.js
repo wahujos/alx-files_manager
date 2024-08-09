@@ -8,7 +8,7 @@ class DBClient {
   constructor() {
     this.client = new MongoClient(MONGO_URI, { useUnifiedTopology: true, useNewUrlParser: true });
     this.client.connect().then(() => {
-      this.db = this.client.db(); 
+      this.db = this.client.db();
     }).catch((err) => {
       console.error('Error connecting to MongoDB:', err);
     });
