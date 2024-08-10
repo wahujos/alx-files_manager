@@ -30,9 +30,11 @@ class FilesController {
     if (!user) {
       return response.status(401).json({ error: 'Unauthorized' });
     }
-    
-    const { name, type, parentId, isPublic = false, data } = request.body;
-    
+
+    const {
+      name, type, parentId, isPublic = false, data,
+    } = request.body;
+
     if (!name) {
       return response.status(400).json({ error: 'Missing name' });
     }
@@ -72,44 +74,43 @@ class FilesController {
           isPublic,
           parentId: parentId || 0,
         });
-      } else {
-        const filePath = process.env.FOLDER_PATH || '/tmp/files_manager';
-        const fileName = `${filePath}/${uuidv4()}`;
-        const buff = Buffer.from(data, 'base64');
+      }
+      const filePath = process.env.FOLDER_PATH || '/tmp/files_manager';
+      const fileName = `${filePath}/${uuidv4()}`;
+      const buff = Buffer.from(data, 'base64');
 
-        try {
-          await fs.mkdir(filePath, { recursive: true });
-          await fs.writeFile(fileName, buff);
-        } catch (error) {
-          console.error('Error writing file:', error);
-          return response.status(500).json({ error: 'Internal server error' });
-        }
+      try {
+        await fs.mkdir(filePath, { recursive: true });
+        await fs.writeFile(fileName, buff);
+      } catch (error) {
+        console.error('Error writing file:', error);
+        return response.status(500).json({ error: 'Internal server error' });
+      }
 
-        const result = await files.insertOne({
+      const result = await files.insertOne({
+        userId: user._id,
+        name,
+        type,
+        isPublic,
+        parentId: parentId || 0,
+        localPath: fileName,
+      });
+
+      if (type === 'image') {
+        fileQueue.add({
           userId: user._id,
-          name,
-          type,
-          isPublic,
-          parentId: parentId || 0,
-          localPath: fileName,
-        });
-
-        if (type === 'image') {
-          fileQueue.add({
-            userId: user._id,
-            fileId: result.insertedId,
-          });
-        }
-
-        return response.status(201).json({
-          id: result.insertedId,
-          userId: user._id,
-          name,
-          type,
-          isPublic,
-          parentId: parentId || 0,
+          fileId: result.insertedId,
         });
       }
+
+      return response.status(201).json({
+        id: result.insertedId,
+        userId: user._id,
+        name,
+        type,
+        isPublic,
+        parentId: parentId || 0,
+      });
     } catch (error) {
       console.error('Error uploading file:', error);
       return response.status(500).json({ error: 'Internal server error' });
@@ -121,7 +122,7 @@ class FilesController {
     if (!user) {
       return response.status(401).json({ error: 'Unauthorized' });
     }
-    
+
     const fileId = request.params.id;
     const files = dbClient.db.collection('files');
     const idObject = new ObjectID(fileId);
@@ -143,7 +144,7 @@ class FilesController {
     if (!user) {
       return response.status(401).json({ error: 'Unauthorized' });
     }
-    
+
     const { parentId, page = 0 } = request.query;
     const files = dbClient.db.collection('files');
     const query = parentId
@@ -158,17 +159,17 @@ class FilesController {
           $facet: {
             metadata: [
               { $count: 'total' },
-              { $addFields: { page: parseInt(page, 10) } }
+              { $addFields: { page: parseInt(page, 10) } },
             ],
             data: [
               { $skip: 20 * parseInt(page, 10) },
-              { $limit: 20 }
-            ]
-          }
-        }
+              { $limit: 20 },
+            ],
+          },
+        },
       ]).toArray();
 
-      const final = result[0].data.map(file => {
+      const final = result[0].data.map((file) => {
         const tmpFile = { ...file, id: file._id };
         delete tmpFile._id;
         delete tmpFile.localPath;
@@ -187,7 +188,7 @@ class FilesController {
     if (!user) {
       return response.status(401).json({ error: 'Unauthorized' });
     }
-    
+
     const { id } = request.params;
     const files = dbClient.db.collection('files');
     const idObject = new ObjectID(id);
@@ -196,7 +197,7 @@ class FilesController {
       const file = await files.findOneAndUpdate(
         { _id: idObject, userId: user._id },
         { $set: { isPublic: true } },
-        { returnOriginal: false }
+        { returnOriginal: false },
       );
       if (!file.value) {
         return response.status(404).json({ error: 'Not found' });
@@ -213,7 +214,7 @@ class FilesController {
     if (!user) {
       return response.status(401).json({ error: 'Unauthorized' });
     }
-    
+
     const { id } = request.params;
     const files = dbClient.db.collection('files');
     const idObject = new ObjectID(id);
@@ -222,7 +223,7 @@ class FilesController {
       const file = await files.findOneAndUpdate(
         { _id: idObject, userId: user._id },
         { $set: { isPublic: false } },
-        { returnOriginal: false }
+        { returnOriginal: false },
       );
       if (!file.value) {
         return response.status(404).json({ error: 'Not found' });
@@ -251,34 +252,33 @@ class FilesController {
         }
 
         let fileName = file.localPath;
-        const size = request.query.size;
+        const { size } = request.query;
         if (size) {
           fileName = `${file.localPath}_${size}`;
         }
         const data = await fs.readFile(fileName);
         const contentType = mime.contentType(file.name);
         return response.header('Content-Type', contentType).status(200).send(data);
-      } else {
-        const user = await FilesController.getUser(request);
-        if (!user) {
-          return response.status(404).json({ error: 'Not found' });
-        }
-        if (file.userId.toString() === user._id.toString()) {
-          if (file.type === 'folder') {
-            return response.status(400).json({ error: "A folder doesn't have content" });
-          }
-
-          let fileName = file.localPath;
-          const size = request.query.size;
-          if (size) {
-            fileName = `${file.localPath}_${size}`;
-          }
-          const data = await fs.readFile(fileName);
-          const contentType = mime.contentType(file.name);
-          return response.header('Content-Type', contentType).status(200).send(data);
-        }
+      }
+      const user = await FilesController.getUser(request);
+      if (!user) {
         return response.status(404).json({ error: 'Not found' });
       }
+      if (file.userId.toString() === user._id.toString()) {
+        if (file.type === 'folder') {
+          return response.status(400).json({ error: "A folder doesn't have content" });
+        }
+
+        let fileName = file.localPath;
+        const { size } = request.query;
+        if (size) {
+          fileName = `${file.localPath}_${size}`;
+        }
+        const data = await fs.readFile(fileName);
+        const contentType = mime.contentType(file.name);
+        return response.header('Content-Type', contentType).status(200).send(data);
+      }
+      return response.status(404).json({ error: 'Not found' });
     } catch (error) {
       console.error('Error fetching file:', error);
       return response.status(500).json({ error: 'Internal server error' });
